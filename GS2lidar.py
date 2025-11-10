@@ -90,7 +90,7 @@ class GS2_Lidar:
         mesg = self.read_message()
         
         # Extract the device address from the response
-        self.device_address = response[4:5]
+        self.device_address = mesg["device_addr"]
 
     def fetch_device_version_info(self):
         """
@@ -107,10 +107,9 @@ class GS2_Lidar:
         )
 
         mesg = self.read_message()
-        """
-        self.version_number = response_data_segment[:3]
+        data = mesg["data_segment"]
+        self.version_number = data_segment[:3]
         self.serial_number = response_data_segment[3:]
-        """
 
     def fetch_device_parameters(self):
         """
@@ -127,6 +126,8 @@ class GS2_Lidar:
             check_code=b"\x61",
         )
         mesg = self.read_message()
+        data = mesg["data_segment"]
+        print(f"data : {data}")
         """
         # Extract the parameters based on the provided byte offset information
         k0_bytes = response_data_segment[0:1]
@@ -148,15 +149,6 @@ class GS2_Lidar:
         self.compensated_b1 = b1 / 10000.0
         self.bias = (float)(bias) / 10.0
         """
-
-    def get_device_address(self):
-        """
-        Get the device address.
-
-        Returns:
-            The device address.
-        """
-        return self.device_address
 
     def send_command(
         self, device_address, packet_type, data_length, data_segment, check_code):
