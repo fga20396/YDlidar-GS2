@@ -19,15 +19,17 @@ if __name__ == "__main__":
         # get the scan data and print it constantly
         while True:
             distances, thetas = lidar.get_scan_data()
+            """
             x = []
             y = []
-
             for i in range(len(distances)):
                 x.append(distances[i]*math.sin(thetas[i]).real)
                 y.append(distances[i]*math.cos(thetas[i]).real)
-            
+            """
+            for i in range 10:
+                print(distances[i])
 
     except KeyboardInterrupt:
-        plt.close()
+        print("stopped by ctl-c")
     finally:
         lidar.stop_scan()
