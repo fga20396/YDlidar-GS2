@@ -80,14 +80,15 @@ class GS2_Lidar:
 
         """
         # get the device address from the command response
-        response = self.send_command(
+        self.send_command(
             device_address=b"\x00",
             packet_type=GS2_Lidar.GS2_GET_DEVICE_ADDRESS,
             data_length=b"",
             data_segment=b"\x00\x00",
             check_code=b"\x60",
         )
-
+        mesg = self.read_message()
+        
         # Extract the device address from the response
         self.device_address = response[4:5]
 
@@ -97,7 +98,7 @@ class GS2_Lidar:
 
         """
         # get the device parameters from the command response
-        response = self.send_command(
+        self.send_command(
             device_address=b"\x00",
             packet_type=GS2_Lidar.GS2_GET_DEVICE_VERSION_INFO,
             data_length=b"\x00\x00",
@@ -105,26 +106,11 @@ class GS2_Lidar:
             check_code=b"\x62",
         )
 
-        # response_data_len = response[6:8]
-        response_data_segment = response[8:-1]
-        # response_check_code = response[-1:]
-
+        mesg = self.read_message()
+        """
         self.version_number = response_data_segment[:3]
         self.serial_number = response_data_segment[3:]
-
-        # print("Response:")
-        # print(response)
-        # print("Response (Byte Array):")
-        # print(bytearray(response))
-        # # print the response data len
-        # print("Response data len:")
-        # print(response_data_len)
-        # # print the response data segment
-        # print("Response data segment:")
-        # print(response_data_segment)
-        # # print the response check code
-        # print("Response check code:")
-        # print(response_check_code)
+        """
 
     def fetch_device_parameters(self):
         """
@@ -133,36 +119,15 @@ class GS2_Lidar:
 
         """
         # get the device parameters from the command response
-        response = self.send_command(
+        self.send_command(
             device_address=b"\x00",
             packet_type=GS2_Lidar.GS2_GET_DEVICE_PARAMETERS,
             data_length=b"\x00\x00",
             data_segment=b"",
             check_code=b"\x61",
         )
-
-        response_data_len = response[6:8]
-        response_data_segment = response[8:-1]
-        response_check_code = response[-1:]
-
-        # print("Response:")
-        # print(response)
-        # print("Response (Byte Array):")
-        # print(bytearray(response))
-        # # print the response data len
-        # print("Response data len (byte):")
-        # print(response_data_len)
-        # print("Response data len:")
-        # print(int.from_bytes(response_data_len, byteorder="little"))
-        # # print the response data segment
-        # print("Response data segment:")
-        # print(response_data_segment)
-        # print("Response data segment (Length):")
-        # print(len(response_data_segment))
-        # # print the response check code
-        # print("Response check code:")
-        # print(response_check_code)
-
+        mesg = self.read_message()
+        """
         # Extract the parameters based on the provided byte offset information
         k0_bytes = response_data_segment[0:1]
         b0_bytes = response_data_segment[2:3]
@@ -182,6 +147,7 @@ class GS2_Lidar:
         self.compensated_b0 = b0 / 10000.0
         self.compensated_b1 = b1 / 10000.0
         self.bias = (float)(bias) / 10.0
+        """
 
     def get_device_address(self):
         """
@@ -193,8 +159,7 @@ class GS2_Lidar:
         return self.device_address
 
     def send_command(
-        self, device_address, packet_type, data_length, data_segment, check_code
-    ):
+        self, device_address, packet_type, data_length, data_segment, check_code):
         """
         Sends a command to the device with the specified address and retrieves the response.
 
@@ -206,7 +171,7 @@ class GS2_Lidar:
             check_code (str): The check code for validating the command. (1 Byte Length)
 
         Returns:
-            str: The response received from the device.
+            none
         """
         command = (
             self.GS2_PACKET_HEADER  # The Header for the lidar's commands is fixed
@@ -223,11 +188,46 @@ class GS2_Lidar:
         # Send a command to the lidar
         self.ser.write(command)
 
+    def read_message(self):
         # Read the response from the lidar
-        response = self.ser.readline()
+        # Step 1: Find header
+        buffer = b''
+        while True:
+            buffer += self.ser.read(1)
+                if len(buffer) >= 4 and buffer[-4:] == HEADER:
+                    break  # Header found
 
-        # return the response
-        return response
+        # Step 2: Read fixed fields after header
+        fixed_part = self.ser.read(1 + 1 + 2)  # device addr (1) + packet type (1) + response size (2)
+        if len(fixed_part) < 4:
+            print("Incomplete fixed part")
+            return None
+
+        device_addr = fixed_part[0]
+        packet_type = fixed_part[1]
+        response_size = struct.unpack('<H', fixed_part[2:4])[0]  # LSB first
+
+        # Step 3: Read data segment and check code
+        data_and_check = self.ser.read(response_size + 1)
+        if len(data_and_check) < response_size + 1:
+            print("Incomplete data segment")
+            return None
+
+        data_segment = data_and_check[:-1]
+        check_code = data_and_check[-1]
+
+        # Combine all parts
+        message = {
+            "header": HEADER,
+            "device_addr": device_addr,
+            "packet_type": packet_type,
+            "response_size": response_size,
+            "data_segment": data_segment,
+            "check_code": check_code
+        }
+
+        print("Parsed message:", message)
+        return message
 
     def start_scan(self):
         """
