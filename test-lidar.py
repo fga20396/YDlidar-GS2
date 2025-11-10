@@ -1,7 +1,7 @@
 import tkinter as tk
 import math
 import threading
-from GS2_Lidar import GS2_Lidar  # Ensure this matches the actual filename and class name
+from GS2lidar import *  # Ensure this matches the actual filename and class name
 
 # Configuration
 PORT = '/dev/ttyUSB0'  # Adjust as needed
